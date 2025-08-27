@@ -123,12 +123,12 @@ def api_frontpage():
 def api_subreddit_info():
     """Получить информацию о сабреддите через POST"""
     data = request.get_json()
-    if not data or 'subreddit' not in data:
-        return jsonify({"error": "Требуется параметр 'subreddit' в JSON"}), 400
+    if not data or 'subreddit_name' not in data:
+        return jsonify({"error": "Требуется параметр 'subreddit_name' в JSON"}), 400
     
     response = mcp_client.send_request("tools/call", {
         "name": "get_subreddit_info",
-        "arguments": {"subreddit": data['subreddit']}
+        "arguments": {"subreddit_name": data['subreddit_name']}
     })
     return jsonify(response)
 
@@ -136,13 +136,13 @@ def api_subreddit_info():
 def api_subreddit_hot():
     """Получить горячие посты сабреддита через POST"""
     data = request.get_json()
-    if not data or 'subreddit' not in data:
-        return jsonify({"error": "Требуется параметр 'subreddit' в JSON"}), 400
+    if not data or 'subreddit_name' not in data:
+        return jsonify({"error": "Требуется параметр 'subreddit_name' в JSON"}), 400
     
     limit = data.get('limit', 10)
     response = mcp_client.send_request("tools/call", {
         "name": "get_subreddit_hot_posts",
-        "arguments": {"subreddit": data['subreddit'], "limit": limit}
+        "arguments": {"subreddit_name": data['subreddit_name'], "limit": limit}
     })
     return jsonify(response)
 
@@ -154,7 +154,7 @@ def api_post_details():
         return jsonify({"error": "Требуется параметр 'post_id' в JSON"}), 400
     
     response = mcp_client.send_request("tools/call", {
-        "name": "get_post_details",
+        "name": "get_post_content",
         "arguments": {"post_id": data['post_id']}
     })
     return jsonify(response)
@@ -188,7 +188,7 @@ def get_subreddit(subreddit):
     """Получить информацию о сабреддите"""
     response = mcp_client.send_request("tools/call", {
         "name": "get_subreddit_info",
-        "arguments": {"subreddit": subreddit}
+        "arguments": {"subreddit_name": subreddit}
     })
     return jsonify(response)
 
@@ -198,7 +198,7 @@ def get_subreddit_hot(subreddit):
     limit = request.args.get('limit', 10, type=int)
     response = mcp_client.send_request("tools/call", {
         "name": "get_subreddit_hot_posts",
-        "arguments": {"subreddit": subreddit, "limit": limit}
+        "arguments": {"subreddit_name": subreddit, "limit": limit}
     })
     return jsonify(response)
 
@@ -206,7 +206,7 @@ def get_subreddit_hot(subreddit):
 def get_post(post_id):
     """Получить детали поста"""
     response = mcp_client.send_request("tools/call", {
-        "name": "get_post_details",
+        "name": "get_post_content",
         "arguments": {"post_id": post_id}
     })
     return jsonify(response)
@@ -218,6 +218,41 @@ def get_post_comments(post_id):
     response = mcp_client.send_request("tools/call", {
         "name": "get_post_comments",
         "arguments": {"post_id": post_id, "limit": limit}
+    })
+    return jsonify(response)
+
+@app.route('/api/reddit/search_subreddits', methods=['POST'])
+def api_search_subreddits():
+    """Поиск сабреддитов по запросу и фильтрам подписчиков"""
+    data = request.get_json() or {}
+    if 'query' not in data:
+        return jsonify({"error": "Требуется параметр 'query' в JSON"}), 400
+    args = {
+        "query": data['query'],
+        "limit": data.get('limit', 10)
+    }
+    if 'min_subscribers' in data:
+        args['min_subscribers'] = data['min_subscribers']
+    if 'max_subscribers' in data:
+        args['max_subscribers'] = data['max_subscribers']
+    response = mcp_client.send_request("tools/call", {
+        "name": "search_subreddits",
+        "arguments": args
+    })
+    return jsonify(response)
+
+@app.route('/api/reddit/find_unpopular_subreddits', methods=['POST'])
+def api_find_unpopular_subreddits():
+    """Найти непопулярные сабреддиты по порогу подписчиков и опциональному запросу"""
+    data = request.get_json() or {}
+    args = {
+        "query": data.get('query', ''),
+        "max_subscribers": data.get('max_subscribers', 50000),
+        "limit": data.get('limit', 10)
+    }
+    response = mcp_client.send_request("tools/call", {
+        "name": "find_unpopular_subreddits",
+        "arguments": args
     })
     return jsonify(response)
 
