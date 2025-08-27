@@ -26,5 +26,8 @@ COPY --from=builder /app/dist/*.whl /app/
 # Install the package
 RUN pip install /app/*.whl
 
-# Define default command
-ENTRYPOINT ["python", "-m", "mcp_server_reddit"]
+# Add debugging info
+RUN pip show mcp-server-reddit
+
+# Define default command with verbose output
+ENTRYPOINT ["python", "-m", "mcp_server_reddit", "--help"]
