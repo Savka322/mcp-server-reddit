@@ -29,5 +29,6 @@ RUN pip install /app/*.whl
 # Add debugging info
 RUN pip show mcp-server-reddit
 
-# Define default command with verbose output
-ENTRYPOINT ["python", "-m", "mcp_server_reddit", "stdio"]
+# MCP servers typically run in stdio mode by default
+# Keep container alive and ready for MCP connections
+ENTRYPOINT ["python", "-m", "mcp_server_reddit"]
