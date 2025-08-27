@@ -52,17 +52,20 @@ class MCPClient:
                 }
                 
                 request_json = json.dumps(request_data) + "\n"
+                print(f"DEBUG: Отправляю в MCP: {request_json.strip()}") # ОТЛАДКА
                 self.process.stdin.write(request_json)
                 self.process.stdin.flush()
                 
                 # Читаем ответ
                 response_line = self.process.stdout.readline()
+                print(f"DEBUG: Получено от MCP: {response_line.strip()}") # ОТЛАДКА
                 if response_line:
                     return json.loads(response_line.strip())
                 else:
                     return {"error": "Нет ответа от MCP сервера"}
                     
             except Exception as e:
+                print(f"DEBUG: Исключение в send_request: {e}") # ОТЛАДКА
                 return {"error": f"Ошибка связи с MCP сервером: {str(e)}"}
 
 # Глобальный экземпляр клиента
