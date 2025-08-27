@@ -22,7 +22,7 @@ WORKDIR /app
 COPY --from=builder /app/dist/*.whl /app/
 
 # Install the package and Flask for HTTP wrapper
-RUN pip install /app/*.whl flask
+ RUN pip install --no-cache-dir /app/*.whl flask
 
 # Add debugging info
 RUN pip show mcp-server-reddit
