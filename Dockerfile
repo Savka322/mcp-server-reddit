@@ -5,8 +5,8 @@ FROM python:3.11-slim as builder
 # Set work directory
 WORKDIR /app
 
-# Install build system
-RUN pip install hatchling
+# Install build system and build tools
+RUN pip install hatchling build
 
 # Copy project files
 COPY pyproject.toml README.md /app/
@@ -19,12 +19,11 @@ RUN python -m build
 FROM python:3.11-slim
 
 WORKDIR /app
-# Install poetry
-RUN pip install poetry
 
-RUN pip install build 
-# Install the package
+# Copy the built wheel from builder stage
 COPY --from=builder /app/dist/*.whl /app/
+
+# Install the package
 RUN pip install /app/*.whl
 
 # Define default command
