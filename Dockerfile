@@ -19,7 +19,10 @@ RUN python -m build
 FROM python:3.11-slim
 
 WORKDIR /app
+# Install poetry
+RUN pip install poetry
 
+RUN pip install build 
 # Install the package
 COPY --from=builder /app/dist/*.whl /app/
 RUN pip install /app/*.whl
