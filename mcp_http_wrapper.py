@@ -68,6 +68,31 @@ class MCPClient:
 # Глобальный экземпляр клиента
 mcp_client = MCPClient()
 
+@app.route('/')
+def index():
+    """Главная страница с документацией API"""
+    return """
+    <h1>MCP Reddit API Server</h1>
+    <p>HTTP обертка для MCP сервера Reddit</p>
+    
+    <h2>Доступные endpoints:</h2>
+    <ul>
+        <li><a href="/health">/health</a> - Проверка здоровья сервиса</li>
+        <li><a href="/tools">/tools</a> - Список доступных инструментов</li>
+        <li><a href="/reddit/frontpage?limit=5">/reddit/frontpage?limit=5</a> - Главная страница Reddit</li>
+        <li>/reddit/subreddit/&lt;subreddit&gt; - Информация о сабреддите</li>
+        <li>/reddit/subreddit/&lt;subreddit&gt;/hot?limit=10 - Горячие посты сабреддита</li>
+        <li>/reddit/post/&lt;post_id&gt; - Детали поста</li>
+        <li>/reddit/post/&lt;post_id&gt;/comments - Комментарии к посту</li>
+    </ul>
+    
+    <h2>Примеры:</h2>
+    <ul>
+        <li><a href="/reddit/subreddit/python">/reddit/subreddit/python</a></li>
+        <li><a href="/reddit/subreddit/programming/hot?limit=3">/reddit/subreddit/programming/hot?limit=3</a></li>
+    </ul>
+    """
+
 @app.route('/health')
 def health():
     """Проверка здоровья сервиса"""
@@ -77,6 +102,75 @@ def health():
 def list_tools():
     """Получить список доступных инструментов"""
     response = mcp_client.send_request("tools/list")
+    return jsonify(response)
+
+@app.route('/api/reddit/frontpage', methods=['GET', 'POST'])
+def api_frontpage():
+    """Получить посты с главной страницы Reddit (GET/POST)"""
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        limit = data.get('limit', 10)
+    else:
+        limit = request.args.get('limit', 10, type=int)
+        
+    response = mcp_client.send_request("tools/call", {
+        "name": "get_frontpage_posts",
+        "arguments": {"limit": limit}
+    })
+    return jsonify(response)
+
+@app.route('/api/reddit/subreddit', methods=['POST'])
+def api_subreddit_info():
+    """Получить информацию о сабреддите через POST"""
+    data = request.get_json()
+    if not data or 'subreddit' not in data:
+        return jsonify({"error": "Требуется параметр 'subreddit' в JSON"}), 400
+    
+    response = mcp_client.send_request("tools/call", {
+        "name": "get_subreddit_info",
+        "arguments": {"subreddit": data['subreddit']}
+    })
+    return jsonify(response)
+
+@app.route('/api/reddit/subreddit/hot', methods=['POST'])
+def api_subreddit_hot():
+    """Получить горячие посты сабреддита через POST"""
+    data = request.get_json()
+    if not data or 'subreddit' not in data:
+        return jsonify({"error": "Требуется параметр 'subreddit' в JSON"}), 400
+    
+    limit = data.get('limit', 10)
+    response = mcp_client.send_request("tools/call", {
+        "name": "get_subreddit_hot_posts",
+        "arguments": {"subreddit": data['subreddit'], "limit": limit}
+    })
+    return jsonify(response)
+
+@app.route('/api/reddit/post', methods=['POST'])
+def api_post_details():
+    """Получить детали поста через POST"""
+    data = request.get_json()
+    if not data or 'post_id' not in data:
+        return jsonify({"error": "Требуется параметр 'post_id' в JSON"}), 400
+    
+    response = mcp_client.send_request("tools/call", {
+        "name": "get_post_details",
+        "arguments": {"post_id": data['post_id']}
+    })
+    return jsonify(response)
+
+@app.route('/api/reddit/comments', methods=['POST'])
+def api_post_comments():
+    """Получить комментарии к посту через POST"""
+    data = request.get_json()
+    if not data or 'post_id' not in data:
+        return jsonify({"error": "Требуется параметр 'post_id' в JSON"}), 400
+    
+    limit = data.get('limit', 20)
+    response = mcp_client.send_request("tools/call", {
+        "name": "get_post_comments",
+        "arguments": {"post_id": data['post_id'], "limit": limit}
+    })
     return jsonify(response)
 
 @app.route('/reddit/frontpage')
