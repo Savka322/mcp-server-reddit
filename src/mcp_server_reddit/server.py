@@ -25,6 +25,8 @@ class RedditTools(str, Enum):
     GET_SUBREDDIT_RISING_POSTS = "get_subreddit_rising_posts"
     GET_POST_CONTENT = "get_post_content"
     GET_POST_COMMENTS = "get_post_comments"
+    SEARCH_SUBREDDITS = "search_subreddits"
+    FIND_UNPOPULAR_SUBREDDITS = "find_unpopular_subreddits"
 
 
 class SubredditInfo(BaseModel):
@@ -190,6 +192,62 @@ class RedditServer:
                 comments.append(comment)
         return comments
 
+    def search_subreddits(
+        self,
+        query: str,
+        limit: int = 10,
+        min_subscribers: int | None = None,
+        max_subscribers: int | None = None,
+    ) -> list[SubredditInfo]:
+        """Search subreddits by query and optional subscriber filters."""
+        results: list[SubredditInfo] = []
+        # redditwarp provides a search interface under client.p.search.subreddits
+        # Fallback to empty list if interface differs; errors are raised to caller
+        for subr in self.client.p.search.subreddits(query, limit):  # type: ignore[attr-defined]
+            info = SubredditInfo(
+                name=subr.name,
+                subscriber_count=getattr(subr, 'subscriber_count', 0),
+                description=getattr(subr, 'public_description', None),
+            )
+            if min_subscribers is not None and info.subscriber_count < min_subscribers:
+                continue
+            if max_subscribers is not None and info.subscriber_count > max_subscribers:
+                continue
+            results.append(info)
+        return results
+
+    def find_unpopular_subreddits(
+        self,
+        query: str = "",
+        max_subscribers: int = 50000,
+        limit: int = 10,
+    ) -> list[SubredditInfo]:
+        """Heuristically find less popular subreddits (by subscriber threshold).
+
+        If query is provided, searches by query and filters by max_subscribers.
+        If query is empty, samples from frontpage posts' subreddits and filters.
+        """
+        collected: dict[str, SubredditInfo] = {}
+        if query:
+            for info in self.search_subreddits(query=query, limit=limit * 3, max_subscribers=max_subscribers):
+                if info.name not in collected:
+                    collected[info.name] = info
+                if len(collected) >= limit:
+                    break
+            return list(collected.values())
+
+        # Fallback discovery via frontpage posts' subreddits
+        for post in self.get_frontpage_posts(limit=limit * 10):
+            try:
+                s = self.get_subreddit_info(post.subreddit)
+            except Exception:
+                continue
+            if s.subscriber_count <= max_subscribers and s.name not in collected:
+                collected[s.name] = s
+            if len(collected) >= limit:
+                break
+        return list(collected.values())
+
 
 async def serve() -> None:
     server = Server("mcp-reddit")
@@ -208,6 +266,61 @@ async def serve() -> None:
                         "limit": {
                             "type": "integer",
                             "description": "Number of posts to return (default: 10)",
+                            "default": 10,
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    }
+                }
+            ),
+            Tool(
+                name=RedditTools.SEARCH_SUBREDDITS.value,
+                description="Search subreddits by query and optional subscriber thresholds",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query for subreddit names/descriptions",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Number of subreddits to return (default: 10)",
+                            "default": 10,
+                            "minimum": 1,
+                            "maximum": 100
+                        },
+                        "min_subscribers": {
+                            "type": "integer",
+                            "description": "Minimum subscribers filter",
+                        },
+                        "max_subscribers": {
+                            "type": "integer",
+                            "description": "Maximum subscribers filter",
+                        }
+                    },
+                    "required": ["query"]
+                }
+            ),
+            Tool(
+                name=RedditTools.FIND_UNPOPULAR_SUBREDDITS.value,
+                description="Find less popular subreddits by subscriber threshold; optionally by query",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Optional search query to focus discovery",
+                            "default": ""
+                        },
+                        "max_subscribers": {
+                            "type": "integer",
+                            "description": "Maximum subscribers for a subreddit to be considered",
+                            "default": 50000
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Number of subreddits to return (default: 10)",
                             "default": 10,
                             "minimum": 1,
                             "maximum": 100
@@ -380,6 +493,21 @@ async def serve() -> None:
                 case RedditTools.GET_FRONTPAGE_POSTS.value:
                     limit = arguments.get("limit", 10)
                     result = reddit_server.get_frontpage_posts(limit)
+
+                case RedditTools.SEARCH_SUBREDDITS.value:
+                    query = arguments.get("query")
+                    if not query:
+                        raise ValueError("Missing required argument: query")
+                    limit = arguments.get("limit", 10)
+                    min_subs = arguments.get("min_subscribers")
+                    max_subs = arguments.get("max_subscribers")
+                    result = reddit_server.search_subreddits(query, limit, min_subs, max_subs)
+
+                case RedditTools.FIND_UNPOPULAR_SUBREDDITS.value:
+                    query = arguments.get("query", "")
+                    max_subs = arguments.get("max_subscribers", 50000)
+                    limit = arguments.get("limit", 10)
+                    result = reddit_server.find_unpopular_subreddits(query=query, max_subscribers=max_subs, limit=limit)
 
                 case RedditTools.GET_SUBREDDIT_INFO.value:
                     subreddit_name = arguments.get("subreddit_name")
