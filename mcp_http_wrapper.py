@@ -46,7 +46,7 @@ class MCPClient:
             try:
                 request_data = {
                     "jsonrpc": "2.0",
-                    "id": 1,
+                    "id": "1",
                     "method": method,
                 }
                 if params:
