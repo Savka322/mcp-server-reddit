@@ -245,11 +245,15 @@ def api_search_subreddits():
 def api_find_unpopular_subreddits():
     """Найти непопулярные сабреддиты по порогу подписчиков и опциональному запросу"""
     data = request.get_json() or {}
-    args = {
-        "query": data.get('query', ''),
-        "max_subscribers": data.get('max_subscribers', 50000),
-        "limit": data.get('limit', 10)
-    }
+    try:
+        args = {
+            "query": data.get('query', ''),
+            "max_subscribers": int(data.get('max_subscribers', 50000)),
+            "limit": int(data.get('limit', 10))
+        }
+    except (ValueError, TypeError):
+        return jsonify({"error": "Параметры 'limit' и 'max_subscribers' должны быть числами"}), 400
+        
     response = mcp_client.send_request("tools/call", {
         "name": "find_unpopular_subreddits",
         "arguments": args
