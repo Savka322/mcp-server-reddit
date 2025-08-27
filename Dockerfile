@@ -30,4 +30,4 @@ RUN pip install /app/*.whl
 RUN pip show mcp-server-reddit
 
 # Define default command with verbose output
-ENTRYPOINT ["python", "-m", "mcp_server_reddit", "--help"]
+ENTRYPOINT ["python", "-m", "mcp_server_reddit", "stdio"]
