@@ -48,8 +48,10 @@ class MCPClient:
                     "jsonrpc": "2.0",
                     "id": 1,
                     "method": method,
-                    "params": params or {}
                 }
+
+                if params:                                                                                                                                                                                                         │
+                   request_data['params'] = params
                 
                 request_json = json.dumps(request_data) + "\n"
                 print(f"DEBUG: Отправляю в MCP: {request_json.strip()}", flush=True) # ОТЛАДКА
