@@ -19,6 +19,7 @@ class MCPClient:
     def __init__(self):
         self.process = None
         self.lock = threading.Lock()
+        self.initialized = False
         
     def start_mcp_server(self):
         """Запускает MCP сервер как подпроцесс"""
@@ -31,9 +32,52 @@ class MCPClient:
                 text=True,
                 bufsize=1
             )
+            self.initialized = False
             return True
         except Exception as e:
             print(f"Ошибка запуска MCP сервера: {e}")
+            return False
+    
+    def initialize_if_needed(self):
+        """Инициализирует MCP сервер если еще не инициализирован"""
+        if self.initialized:
+            return True
+            
+        try:
+            # Отправляем initialize запрос
+            init_request = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {
+                        "name": "mcp-http-wrapper",
+                        "version": "1.0.0"
+                    }
+                }
+            }
+            
+            request_json = json.dumps(init_request) + "\n"
+            print(f"DEBUG: Инициализация MCP: {request_json.strip()}", flush=True)
+            self.process.stdin.write(request_json)
+            self.process.stdin.flush()
+            
+            # Читаем ответ инициализации
+            response_line = self.process.stdout.readline()
+            print(f"DEBUG: Ответ инициализации: {response_line.strip()}", flush=True)
+            
+            if response_line:
+                response = json.loads(response_line.strip())
+                if "error" not in response:
+                    self.initialized = True
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"DEBUG: Ошибка инициализации: {e}", flush=True)
             return False
     
     def send_request(self, method, params=None):
@@ -42,14 +86,22 @@ class MCPClient:
             if not self.start_mcp_server():
                 return {"error": "Не удается запустить MCP сервер"}
         
+        # Инициализируем если нужно
+        if not self.initialize_if_needed():
+            return {"error": "Не удается инициализировать MCP сервер"}
+        
         with self.lock:
             try:
                 request_data = {
                     "jsonrpc": "2.0",
-                    "id": "1",
+                    "id": 1,  # Всегда number, не string
                     "method": method,
                 }
-                if params:
+                
+                # Для tools/list не нужны параметры
+                if method == "tools/list":
+                    pass  # не добавляем params
+                elif params:
                     request_data['params'] = params
 
                 request_json = json.dumps(request_data) + "\n"
