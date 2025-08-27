@@ -100,7 +100,7 @@ class MCPClient:
                 
                 # Для tools/list не нужны параметры
                 if method == "tools/list":
-                    pass  # не добавляем params
+                    request_data['params'] = {}
                 elif params:
                     request_data['params'] = params
 
