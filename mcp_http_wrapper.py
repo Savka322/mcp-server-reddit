@@ -48,26 +48,24 @@ class MCPClient:
                     "jsonrpc": "2.0",
                     "id": 1,
                     "method": method,
+                    "params": params or {}
                 }
-
-                if params:                                                                                                                                                                                                         │
-                   request_data['params'] = params
                 
                 request_json = json.dumps(request_data) + "\n"
-                print(f"DEBUG: Отправляю в MCP: {request_json.strip()}", flush=True) # ОТЛАДКА
+                print(f"DEBUG: Отправляю в MCP: {request_json.strip()}", flush=True)
                 self.process.stdin.write(request_json)
                 self.process.stdin.flush()
                 
                 # Читаем ответ
                 response_line = self.process.stdout.readline()
-                print(f"DEBUG: Получено от MCP: {response_line.strip()}", flush=True) # ОТЛАДКА
+                print(f"DEBUG: Получено от MCP: {response_line.strip()}", flush=True)
                 if response_line:
                     return json.loads(response_line.strip())
                 else:
                     return {"error": "Нет ответа от MCP сервера"}
                     
             except Exception as e:
-                print(f"DEBUG: Исключение в send_request: {e}", flush=True) # ОТЛАДКА
+                print(f"DEBUG: Исключение в send_request: {e}", flush=True)
                 return {"error": f"Ошибка связи с MCP сервером: {str(e)}"}
 
 # Глобальный экземпляр клиента
